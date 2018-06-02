@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 import tensorflow as tf
 from datasets import asirra as dataset
@@ -9,10 +10,10 @@ from skimage.io import imread
 from skimage.transform import resize
 import matplotlib.pyplot as plt
 
-category = ['기타','새','곤충','애벌레','나비','물레방아','건축물','피아노','비행기','술병','술잔','여자','꽃']
+category = ['others','bird','insect','worm','butfly','wheel','struct','piano','plane','bottle','glass','woman','flower']
 
-def print_lables_by_category(lables) :
-    for i, lable in enumerate(lables) :
+def print_labels_by_category(labels) :
+    for i, lable in enumerate(labels) :
         if int(lable) == 1 :
             break
     print( category[i] )
@@ -22,8 +23,8 @@ root_dir = os.path.join('..', 'image')    # FIXME ..\image
 test_dir = os.path.join(root_dir, 'test')
 
 # Load test set
-X_test, y_test = dataset.read_asirra_subset_csv(test_dir, one_hot=True)
-test_set = dataset.DataSet(X_test, y_test)
+x_test, y_test, z_test = dataset.read_asirra_subset_csv(test_dir, one_hot=True)
+test_set = dataset.DataSet(x_test, y_test, z_test)
 
 # Sanity check
 print('Test set stats:')
@@ -57,12 +58,53 @@ saver.restore(sess, '/tmp/model.ckpt')    # restore learned weights C:\ybchoi\te
 
 test_y_pred = model.predict(sess, test_set, **hp_d)
 
+
+
+# write predict value into pred_value.csv
+np.savetxt("pred_value_names.csv", test_set.names, delimiter=",", fmt='%s')
+np.savetxt("pred_value.csv", test_y_pred, delimiter=",")
+
+# read predict value from pred_value.csv
+pred_list = np.genfromtxt('pred_value.csv', delimiter=',')
+pred_name_list = np.genfromtxt('pred_value_names.csv', delimiter=',', dtype=str)
+
+# set target image
+index = np.where(test_set.names == 'but.jpg')[0][0]
+target_image = test_set.images[index]
+target_image_name = test_set.names[index]
+target_pred_value = test_y_pred[index]
+
+distances = np.empty(pred_list.shape[0])
+for i, pred_values in enumerate(pred_list) :
+    dist = 0
+    for j, x in enumerate(np.nditer(pred_values)) :
+        dist += (x - target_pred_value[j]) * (x - target_pred_value[j])
+    dist = math.sqrt(dist)
+    distances[i] = dist
+
+# find results
+results = np.empty(3, dtype=object)
+for i in range(0,3) :
+    closest = distances.argmin()
+    distances[closest] = 13 # max distance value
+    results[i] = pred_name_list[closest]
+    index = np.where(test_set.names == results[i])[0][0]
+    plt.subplot(2 ,6, i+2)
+    plt.imshow(test_set.images[index])
+
+
 test_score = evaluator.score(test_set.labels, test_y_pred)
 print('Test accuracy: {}'.format(test_score))
 
 print('------------------------------------------')
 
-for ls in test_set.labels :
-    print_lables_by_category(ls)
+# for ls in test_set.labels :
+#     print_labels_by_category(ls)
+
+print(results)
+print(target_image_name)
+plt.subplot(2, 6, 1)
+plt.imshow(target_image)
+plt.show()
 
 print('------------------------------------------')

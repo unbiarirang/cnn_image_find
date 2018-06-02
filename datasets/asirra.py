@@ -32,16 +32,18 @@ def read_asirra_subset_csv(subset_dir, one_hot=True, sample_size=None):
     # Pre-allocate data arrays
     X_set = np.empty((set_size, 256, 256, 3), dtype=np.float32)    # (N, H, W, 3)
     y_set = np.empty((set_size), dtype=np.uint8)                   # (N,)
+    Z_set = np.empty((set_size), dtype=object)               # (N, None) filename list
     for i, filename in enumerate(filename_list):
         if i % 1000 == 0:
             print('Reading subset data: {}/{}...'.format(i, set_size), end='\r')
-        label = dict_label[filename] # filename.split('.')[0]
+        label = dict_label.pop(filename, 4) # filename.split('.')[0]
 
         file_path = os.path.join(subset_dir, filename)
         img = imread(file_path)    # shape: (H, W, 3), range: [0, 255]
         img = resize(img, (256, 256), mode='constant').astype(np.float32)    # (256, 256, 3), [0.0, 1.0]
         X_set[i] = img
         y_set[i] = label
+        Z_set[i] = filename
 
     if one_hot:
         # Convert labels to one-hot vectors, shape: (N, num_classes)
@@ -50,7 +52,7 @@ def read_asirra_subset_csv(subset_dir, one_hot=True, sample_size=None):
         y_set = y_set_oh
     print('\nDone')
 
-    return X_set, y_set
+    return X_set, y_set, Z_set
 
 
 def read_asirra_subset(subset_dir, one_hot=True, sample_size=None):
@@ -71,9 +73,9 @@ def read_asirra_subset(subset_dir, one_hot=True, sample_size=None):
         # Randomly sample subset of data when sample_size is specified
         filename_list = np.random.choice(filename_list, size=sample_size, replace=False)
         set_size = sample_size
-    else:
+    #else:
         # Just shuffle the filename list
-        np.random.shuffle(filename_list)
+        #np.random.shuffle(filename_list)
 
     # Pre-allocate data arrays
     X_set = np.empty((set_size, 256, 256, 3), dtype=np.float32)    # (N, H, W, 3)
@@ -172,7 +174,7 @@ def center_crop(images, crop_l):
 
 
 class DataSet(object):
-    def __init__(self, images, labels=None):
+    def __init__(self, images, labels=None, names=None):
         """
         Construct a new DataSet object.
         :param images: np.ndarray, shape: (N, H, W, C).
@@ -182,11 +184,19 @@ class DataSet(object):
             assert images.shape[0] == labels.shape[0], (
                 'Number of examples mismatch, between images and labels.'
             )
+
+        if names is not None:
+            assert images.shape[0] == names.shape[0], (
+                'Number of examples mismatch, between images and names.'
+            )
+
         self._num_examples = images.shape[0]
         self._images = images
         self._labels = labels    # NOTE: this can be None, if not given.
+        self._names = names      # NOTE: this can be None, if not given.
         self._indices = np.arange(self._num_examples, dtype=np.int)    # image/label indices(can be permuted)
         self._reset()
+
 
     def _reset(self):
         """Reset some variables."""
@@ -200,6 +210,10 @@ class DataSet(object):
     @property
     def labels(self):
         return self._labels
+
+    @property
+    def names(self):
+        return self._names
 
     @property
     def num_examples(self):
