@@ -10,6 +10,7 @@ from skimage.io import imread
 from skimage.transform import resize
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from sklearn.neighbors import NearestNeighbors
 
 category = ['others','bird','insect','worm','butfly','wheel','struct','piano','plane','bottle','glass','woman','flower']
 
@@ -77,33 +78,27 @@ pred_list = np.genfromtxt('pred_value.csv', delimiter=',')
 pred_name_list = np.genfromtxt('pred_value_names.csv', delimiter=',', dtype=str)
 
 
-# # get results
-# results = np.empty(test_set.images.shape[0], dtype=object)
-# for idx in range(0, test_set.images.shape[0]) :
-#     target_image = test_set.images[idx]
-#     target_image_name = test_set.names[idx]
-#     target_pred_value = test_y_pred[idx]
+# knn search
+knn = NearestNeighbors(n_neighbors=10)
+knn.fit(pred_list)
+knn_predict = knn.kneighbors(test_y_pred.reshape(test_y_pred.shape[0],-1), return_distance=False)
+print(knn_predict)
 
-#     distances = np.empty(pred_list.shape[0])
-#     for i, pred_values in enumerate(pred_list) :
-#         dist = 0
-#         for j, x in enumerate(np.nditer(pred_values)) :
-#             dist += (x - target_pred_value[j]) * (x - target_pred_value[j])
 
-#         if dist >= 0:
-#             dist = math.sqrt(dist)
-#             distances[i] = dist
+# search for multiple images
+results = np.empty(test_set.images.shape[0], dtype=object)
+for idx in range(0, test_set.images.shape[0]) :
+    target_image = test_set.images[idx]
+    target_image_name = test_set.names[idx]
+    target_pred_value = test_y_pred[idx]
 
-#     # find result
-#     result = np.empty(10, dtype=object)
-#     for i in range(0,10) :
-#         closest = distances.argmin()
-#         distances[closest] = float('inf') # max distance value
-#         result[i] = pred_name_list[closest]
+    result = np.empty(10, dtype=object)
+    for i, closest in enumerate(knn_predict[idx]) :
+        result[i] = pred_name_list[closest]
 
-#     results[idx] = result
-#     print(target_image_name)
-#     print(result)
+    results[idx] = result
+    print(target_image_name)
+    print(result)
 
 
 
@@ -114,67 +109,43 @@ pred_name_list = np.genfromtxt('pred_value_names.csv', delimiter=',', dtype=str)
 
 
 
-# search for one image
-# set target image
-index = np.where(test_set.names == 'bot12.jpg')[0][0]
-target_image = test_set.images[index]
-target_image_name = test_set.names[index]
-target_pred_value = test_y_pred[index]
+# # search for one image
+# # set target image
+# index = np.where(test_set.names == 'n04515003_31174.JPEG')[0][0]
+# target_image = test_set.images[index]
+# target_image_name = test_set.names[index]
+# target_pred_value = test_y_pred[index]
 
-distances = np.empty(pred_list.shape[0])
-for i, pred_values in enumerate(pred_list) :
-    dist = 0
-    for j, x in enumerate(np.nditer(pred_values)) :
-        dist += (x - target_pred_value[j]) * (x - target_pred_value[j])
+# result = np.empty(10, dtype=object)
+# for i, closest in enumerate(knn_predict[0]) :
+#     result[i] = pred_name_list[closest]
+#     file_path = os.path.join(image_dir, result[i])
+#     img = mpimg.imread(file_path)
+#     plt.subplot(2 ,6, i+2)
+#     plt.imshow(img)
 
-    if dist != 0:
-        dist = math.sqrt(dist)
-        distances[i] = dist
+# print('------------------------------------------')
+# test_score = evaluator.score(test_set.labels, test_y_pred)
+# print('Test accuracy: {}'.format(test_score))
+# print('------------------------------------------')
 
-# find result
-result = np.empty(10, dtype=object)
-for i in range(0,10) :
-    closest = distances.argmin()
-    distances[closest] = float('inf') # max distance value
-    result[i] = pred_name_list[closest]
-    file_path = os.path.join(image_dir, result[i])
-    img=mpimg.imread(file_path)
-    # index = np.where(test_set.names == result[i])[0][0]
-    plt.subplot(2 ,6, i+2)
-    plt.imshow(img)
+# i = 0
+# for ls in test_y_pred :
+#     print(test_set.names[i])
+#     print_predict_labels(ls)
+#     i += 1
 
-
-print('------------------------------------------')
-test_score = evaluator.score(test_set.labels, test_y_pred)
-print('Test accuracy: {}'.format(test_score))
-print('------------------------------------------')
-
-i = 0
-for ls in test_y_pred :
-    print(test_set.names[i])
-    print_predict_labels(ls)
-    i += 1
-
-plt.subplot(2, 6, 1)
-plt.imshow(target_image)
-plt.show()
+# plt.subplot(2, 6, 1)
+# plt.imshow(target_image)
+# plt.show()
 
 
-# # save results as text file
-# text_file = open("results.txt", "w")
-# for idx in range(0, results.shape[0]) :
-#     text_file.write("%s:" % test_set.names[idx])
-#     for i in range(0, 9) :
-#         text_file.write("%s," % results[idx][i])
-#     text_file.write("%s\n" % results[idx][9])    # result has 10 images per a test image
-# text_file.close()
+# save results as text file
+text_file = open("results.txt", "w")
+for idx in range(0, results.shape[0]) :
+    text_file.write("%s:" % test_set.names[idx])
+    for i in range(0, 9) :
+        text_file.write("%s," % results[idx][i])
+    text_file.write("%s\n" % results[idx][9])    # result has 10 images per a test image
+text_file.close()
 
-
-
-
-
-# from sklearn.neighbors import NearestNeighbors
-# knn = NearestNeighbors(n_neighbors=5)
-# knn.fit(test_y_pred)
-# predict = knn.kneighbors(test_y_pred.reshape(test_y_pred.shape[0],-1), return_distance=False)
-# print(predict)
