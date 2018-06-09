@@ -22,6 +22,7 @@ class ConvNet(object):
         self.d = self._build_model(**kwargs)
         self.logits = self.d['logits']
         self.pred = self.d['pred']
+        self.fc7 = self.d['fc7']
         self.loss = self._build_loss(**kwargs)
 
     @abstractmethod
@@ -78,11 +79,11 @@ class ConvNet(object):
 
             # If performing augmentation during prediction,
             if augment_pred:
-                y_pred_patches = np.empty((_batch_size, 10, num_classes),
+                y_pred_patches = np.empty((_batch_size, 10, 4096), #num_classes), # FIXME: FC2 값 빼내기 4096
                                           dtype=np.float32)    # (N, 10, num_classes)
                 # compute predictions for each of 10 patch modes,
                 for idx in range(10):
-                    y_pred_patch = sess.run(self.pred,
+                    y_pred_patch = sess.run(self.fc7, #self.pred, # FIXME: FC2 값 빼내기 self.fc7
                                             feed_dict={self.X: X[:, idx],    # (N, h, w, C)
                                                        self.is_train: False})
                     y_pred_patches[:, idx] = y_pred_patch

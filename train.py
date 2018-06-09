@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
-from datasets import asirra as dataset
+from datasets import dataset as dataset
 from models.nn import AlexNet as ConvNet
 from learning.optimizers import MomentumOptimizer as Optimizer
 from learning.evaluators import AccuracyEvaluator as Evaluator
@@ -15,7 +15,7 @@ root_dir = os.path.join('..', 'image')    # FIXME ..\image
 trainval_dir = os.path.join(root_dir, 'train')
 
 # Load trainval set and split into train/val sets
-X_trainval, y_trainval = dataset.read_asirra_subset_csv(trainval_dir, one_hot=True)
+X_trainval, y_trainval, _ = dataset.read_dataset_csv(trainval_dir, one_hot=True)
 trainval_size = X_trainval.shape[0]
 val_size = int(trainval_size * 0.2)    # FIXME
 val_set = dataset.DataSet(X_trainval[:val_size], y_trainval[:val_size])
@@ -40,7 +40,7 @@ print(val_set.images.min(), val_set.images.max())
 """ 2. Set training hyperparameters """
 hp_d = dict()
 image_mean = train_set.images.mean(axis=(0, 1, 2))    # mean image
-np.save('/tmp/asirra_mean.npy', image_mean)    # save mean image
+np.save('/tmp/mean.npy', image_mean)    # save mean image
 hp_d['image_mean'] = image_mean
 
 # FIXME: Training hyperparameters

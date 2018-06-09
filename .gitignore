@@ -153,3 +153,5 @@ data/
 # Results directory
 results/
 .vscode/launch.json
+
+backup/

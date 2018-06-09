@@ -4,7 +4,7 @@ from skimage.io import imread
 from skimage.transform import resize
 
 
-def read_asirra_subset_csv(subset_dir, one_hot=True, sample_size=None):
+def read_dataset_csv(subset_dir, one_hot=True, sample_size=None):
     dict_label = dict()
 
     with open('list.csv', 'r') as reader:
@@ -25,18 +25,18 @@ def read_asirra_subset_csv(subset_dir, one_hot=True, sample_size=None):
         # Randomly sample subset of data when sample_size is specified
         filename_list = np.random.choice(filename_list, size=sample_size, replace=False)
         set_size = sample_size
-    else:
+    # else:
         # Just shuffle the filename list
-        np.random.shuffle(filename_list)
+        # np.random.shuffle(filename_list)
 
     # Pre-allocate data arrays
     X_set = np.empty((set_size, 256, 256, 3), dtype=np.float32)    # (N, H, W, 3)
     y_set = np.empty((set_size), dtype=np.uint8)                   # (N,)
-    Z_set = np.empty((set_size), dtype=object)               # (N, None) filename list
+    Z_set = np.empty((set_size), dtype=object)                     # (N, None) filename list
     for i, filename in enumerate(filename_list):
         if i % 1000 == 0:
             print('Reading subset data: {}/{}...'.format(i, set_size), end='\r')
-        label = dict_label.pop(filename, 4) # filename.split('.')[0]
+        label = dict_label.pop(filename, 9) # filename.split('.')[0]
 
         file_path = os.path.join(subset_dir, filename)
         img = imread(file_path)    # shape: (H, W, 3), range: [0, 255]
@@ -53,56 +53,6 @@ def read_asirra_subset_csv(subset_dir, one_hot=True, sample_size=None):
     print('\nDone')
 
     return X_set, y_set, Z_set
-
-
-def read_asirra_subset(subset_dir, one_hot=True, sample_size=None):
-    """
-    Load the Asirra Dogs vs. Cats data subset from disk
-    and perform preprocessing for training AlexNet.
-    :param subset_dir: str, path to the directory to read.
-    :param one_hot: bool, whether to return one-hot encoded labels.
-    :param sample_size: int, sample size specified when we are not using the entire set.
-    :return: X_set: np.ndarray, shape: (N, H, W, C).
-             y_set: np.ndarray, shape: (N, num_channels) or (N,).
-    """
-    # Read trainval data
-    filename_list = os.listdir(subset_dir)
-    set_size = len(filename_list)
-
-    if sample_size is not None and sample_size < set_size:
-        # Randomly sample subset of data when sample_size is specified
-        filename_list = np.random.choice(filename_list, size=sample_size, replace=False)
-        set_size = sample_size
-    #else:
-        # Just shuffle the filename list
-        #np.random.shuffle(filename_list)
-
-    # Pre-allocate data arrays
-    X_set = np.empty((set_size, 256, 256, 3), dtype=np.float32)    # (N, H, W, 3)
-    y_set = np.empty((set_size), dtype=np.uint8)                   # (N,)
-    for i, filename in enumerate(filename_list):
-        if i % 1000 == 0:
-            print('Reading subset data: {}/{}...'.format(i, set_size), end='\r')
-        label = filename.split('.')[0]
-        if label == 'cat':
-            y = 0
-        else:  # label == 'dog'
-            y = 1
-        file_path = os.path.join(subset_dir, filename)
-        img = imread(file_path)    # shape: (H, W, 3), range: [0, 255]
-        img = resize(img, (256, 256), mode='constant').astype(np.float32)    # (256, 256, 3), [0.0, 1.0]
-        X_set[i] = img
-        y_set[i] = y
-
-    if one_hot:
-        # Convert labels to one-hot vectors, shape: (N, num_classes)
-        y_set_oh = np.zeros((set_size, 2), dtype=np.uint8)
-        y_set_oh[np.arange(set_size), y_set] = 1
-        y_set = y_set_oh
-    print('\nDone')
-
-    return X_set, y_set
-
 
 def random_crop_reflect(images, crop_l):
     """

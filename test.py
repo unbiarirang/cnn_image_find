@@ -2,17 +2,24 @@ import os
 import math
 import numpy as np
 import tensorflow as tf
-from datasets import asirra as dataset
+from datasets import dataset as dataset
 from models.nn import AlexNet as ConvNet
 from learning.evaluators import AccuracyEvaluator as Evaluator
 
 from skimage.io import imread
 from skimage.transform import resize
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 category = ['others','bird','insect','worm','butfly','wheel','struct','piano','plane','bottle','glass','woman','flower']
 
-def print_labels_by_category(labels) :
+ # print predict result
+def print_predict_labels(labels) :
+    i = labels.argmax()
+    print( category[i] )
+
+# print the image's real label
+def print_real_labels(labels) :
     for i, lable in enumerate(labels) :
         if int(lable) == 1 :
             break
@@ -21,10 +28,12 @@ def print_labels_by_category(labels) :
 """ 1. Load dataset """
 root_dir = os.path.join('..', 'image')    # FIXME ..\image
 test_dir = os.path.join(root_dir, 'test')
+image_dir = os.path.join(root_dir, 'image')
 
 # Load test set
-x_test, y_test, z_test = dataset.read_asirra_subset_csv(test_dir, one_hot=True)
+x_test, y_test, z_test = dataset.read_dataset_csv(test_dir, one_hot=True)
 test_set = dataset.DataSet(x_test, y_test, z_test)
+
 
 # Sanity check
 print('Test set stats:')
@@ -35,7 +44,7 @@ print((test_set.labels[:, 1] == 0).sum(), (test_set.labels[:, 1] == 1).sum())
 
 """ 2. Set test hyperparameters """
 hp_d = dict()
-image_mean = np.load('/tmp/asirra_mean.npy')    # load mean image
+image_mean = np.load('/tmp/mean.npy')    # load mean image
 hp_d['image_mean'] = image_mean
 
 # FIXME: Test hyperparameters
@@ -59,17 +68,55 @@ saver.restore(sess, '/tmp/model.ckpt')    # restore learned weights C:\ybchoi\te
 test_y_pred = model.predict(sess, test_set, **hp_d)
 
 
-
 # write predict value into pred_value.csv
-np.savetxt("pred_value_names.csv", test_set.names, delimiter=",", fmt='%s')
-np.savetxt("pred_value.csv", test_y_pred, delimiter=",")
+# np.savetxt("pred_value_names.csv", test_set.names, delimiter=",", fmt='%s')
+# np.savetxt("pred_value.csv", test_y_pred, delimiter=",")
 
 # read predict value from pred_value.csv
 pred_list = np.genfromtxt('pred_value.csv', delimiter=',')
 pred_name_list = np.genfromtxt('pred_value_names.csv', delimiter=',', dtype=str)
 
+
+# # get results
+# results = np.empty(test_set.images.shape[0], dtype=object)
+# for idx in range(0, test_set.images.shape[0]) :
+#     target_image = test_set.images[idx]
+#     target_image_name = test_set.names[idx]
+#     target_pred_value = test_y_pred[idx]
+
+#     distances = np.empty(pred_list.shape[0])
+#     for i, pred_values in enumerate(pred_list) :
+#         dist = 0
+#         for j, x in enumerate(np.nditer(pred_values)) :
+#             dist += (x - target_pred_value[j]) * (x - target_pred_value[j])
+
+#         if dist >= 0:
+#             dist = math.sqrt(dist)
+#             distances[i] = dist
+
+#     # find result
+#     result = np.empty(10, dtype=object)
+#     for i in range(0,10) :
+#         closest = distances.argmin()
+#         distances[closest] = float('inf') # max distance value
+#         result[i] = pred_name_list[closest]
+
+#     results[idx] = result
+#     print(target_image_name)
+#     print(result)
+
+
+
+
+
+
+
+
+
+
+# search for one image
 # set target image
-index = np.where(test_set.names == 'but.jpg')[0][0]
+index = np.where(test_set.names == 'bot12.jpg')[0][0]
 target_image = test_set.images[index]
 target_image_name = test_set.names[index]
 target_pred_value = test_y_pred[index]
@@ -79,32 +126,55 @@ for i, pred_values in enumerate(pred_list) :
     dist = 0
     for j, x in enumerate(np.nditer(pred_values)) :
         dist += (x - target_pred_value[j]) * (x - target_pred_value[j])
-    dist = math.sqrt(dist)
-    distances[i] = dist
 
-# find results
-results = np.empty(3, dtype=object)
-for i in range(0,3) :
+    if dist != 0:
+        dist = math.sqrt(dist)
+        distances[i] = dist
+
+# find result
+result = np.empty(10, dtype=object)
+for i in range(0,10) :
     closest = distances.argmin()
-    distances[closest] = 13 # max distance value
-    results[i] = pred_name_list[closest]
-    index = np.where(test_set.names == results[i])[0][0]
+    distances[closest] = float('inf') # max distance value
+    result[i] = pred_name_list[closest]
+    file_path = os.path.join(image_dir, result[i])
+    img=mpimg.imread(file_path)
+    # index = np.where(test_set.names == result[i])[0][0]
     plt.subplot(2 ,6, i+2)
-    plt.imshow(test_set.images[index])
+    plt.imshow(img)
 
-
-test_score = evaluator.score(test_set.labels, test_y_pred)
-print('Test accuracy: {}'.format(test_score))
 
 print('------------------------------------------')
+test_score = evaluator.score(test_set.labels, test_y_pred)
+print('Test accuracy: {}'.format(test_score))
+print('------------------------------------------')
 
-# for ls in test_set.labels :
-#     print_labels_by_category(ls)
+i = 0
+for ls in test_y_pred :
+    print(test_set.names[i])
+    print_predict_labels(ls)
+    i += 1
 
-print(results)
-print(target_image_name)
 plt.subplot(2, 6, 1)
 plt.imshow(target_image)
 plt.show()
 
-print('------------------------------------------')
+
+# # save results as text file
+# text_file = open("results.txt", "w")
+# for idx in range(0, results.shape[0]) :
+#     text_file.write("%s:" % test_set.names[idx])
+#     for i in range(0, 9) :
+#         text_file.write("%s," % results[idx][i])
+#     text_file.write("%s\n" % results[idx][9])    # result has 10 images per a test image
+# text_file.close()
+
+
+
+
+
+# from sklearn.neighbors import NearestNeighbors
+# knn = NearestNeighbors(n_neighbors=5)
+# knn.fit(test_y_pred)
+# predict = knn.kneighbors(test_y_pred.reshape(test_y_pred.shape[0],-1), return_distance=False)
+# print(predict)

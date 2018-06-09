@@ -72,7 +72,7 @@ class Optimizer(object):
         augment_train = kwargs.pop('augment_train', True)
 
         # Sample a single batch
-        X, y_true = self.train_set.next_batch(self.batch_size, shuffle=True,
+        X, y_true = self.train_set.next_batch(self.batch_size, shuffle=False,
                                               augment=augment_train, is_train=True)
 
         # Compute the loss and make update
